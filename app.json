@@ -1,20 +1,27 @@
 {
   "expo": {
-    "name": "acheiafoto-mobile",
+    "name": "Achei a Foto",
     "slug": "acheiafoto-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "acheiafotomobile",
-    "userInterfaceStyle": "automatic",
+    "scheme": "acheiafoto",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#1c1c1a",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "bundleIdentifier": "com.reverblabs.acheiafoto",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "O Achei a Foto acessa suas fotos para organizá-las e ajudar você a encontrá-las. As imagens ficam no seu aparelho."
+      }
     },
     "android": {
+      "package": "com.reverblabs.acheiafoto",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#1c1c1a",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
@@ -27,11 +34,21 @@
       "expo-router",
       [
         "expo-splash-screen",
+        { "backgroundColor": "#1c1c1a", "image": "./assets/images/splash-icon.png", "imageWidth": 96 }
+      ],
+      "expo-secure-store",
+      "expo-image",
+      [
+        "expo-media-library",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "photosPermission": "O Achei a Foto acessa suas fotos para organizá-las.",
+          "savePhotosPermission": "Permitir salvar fotos.",
+          "isAccessMediaLocationEnabled": true
         }
+      ],
+      [
+        "expo-notifications",
+        { "icon": "./assets/images/icon.png", "color": "#fbbf24" }
       ]
     ],
     "experiments": {

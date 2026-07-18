@@ -1,56 +1,46 @@
-# Welcome to your Expo app 👋
+# Achei a Foto — app nativo (Expo / React Native)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+App **nativo** (iOS + Android) do Achei a Foto. Substitui o PWA porque só o nativo
+acessa a **galeria real** do celular (`expo-media-library`) — o que a web não consegue.
 
-## Get started
+**Reusa 100% o backend web** (`https://acheiafoto.reverblabs.com.br`): better-auth,
+Neon, premium/convite/billing, gateway de IA. O app é só o cliente — **nunca carrega
+segredo** (lição do APK do cockpit: `EXPO_PUBLIC_*` vira público dentro do binário).
 
-1. Install dependencies
+## MVP entregue (scaffold)
+- Login (better-auth via `@better-auth/expo`, sessão no keychain/keystore).
+- **Galeria real** do aparelho (`expo-media-library`) — grid paginado.
+- Push (`expo-notifications`) + **aviso de atualização** por APK (`checkForUpdate`).
+- Tema âmbar (mesmas cores da web).
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+## Rodar local
 ```bash
-npm run reset-project
+npm install
+npx expo start            # abre no Expo Go (dev)
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Gerar o APK (distribuição por link — fase 1)
+Precisa de conta Expo (grátis). **Só você roda** (login interativo):
+```bash
+npm i -g eas-cli
+eas login
+eas build:configure
+eas build -p android --profile preview     # gera APK, devolve link de download
+```
+O link do APK é o que você compartilha. iOS (depois): `eas build -p ios` — exige
+**Apple Developer** (US$ 99/ano).
 
-### Other setup steps
+## Mudanças necessárias no BACKEND web (achei-a-foto)
+Pra o nativo funcionar 100%, aplicar no repo `achei-a-foto`:
+1. **Auth nativo:** adicionar o plugin `expo()` do `@better-auth/expo` no
+   `src/lib/auth-kit/server.ts` e incluir `acheiafoto://` em `trustedOrigins`.
+2. **Aviso de atualização:** `GET /api/app/version` -> `{ version, apkUrl, notes }`.
+3. **Push:** `POST /api/push/register` (guarda o Expo push token do device) + disparo
+   via Expo Push API a partir do hub.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Lojas (fase 2, pós-MVP)
+`eas build --profile production` (Android app-bundle / iOS) -> `eas submit`.
+Apple US$ 99/ano - Google Play US$ 25 (uma vez).
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Governança
+Repo `silvanobarbosa/acheiafoto-mobile`, registrado na frota ReverbLabs.
