@@ -27,7 +27,7 @@ export default function Login() {
     try {
       const { error: err } = await signIn.email({ email: clean, password });
       if (err) { const m = err.message || ""; throw new Error(/invalid email/i.test(m) ? "E-mail inválido — confira o endereço." : (m || "E-mail ou senha inválidos")); }
-      router.replace("/(tabs)");
+      router.replace("/inicio");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao entrar");
     } finally { setLoading(false); }

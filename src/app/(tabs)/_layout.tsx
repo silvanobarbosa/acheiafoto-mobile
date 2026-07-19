@@ -15,7 +15,7 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: theme.muted,
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Início", tabBarIcon: ({ color, size }) => <Feather name="home" color={color} size={size} /> }} />
+      <Tabs.Screen name="inicio" options={{ title: "Início", tabBarIcon: ({ color, size }) => <Feather name="home" color={color} size={size} /> }} />
       <Tabs.Screen name="buscar" options={{ title: "Buscar", tabBarIcon: ({ color, size }) => <Feather name="search" color={color} size={size} /> }} />
       <Tabs.Screen name="ferramentas" options={{ title: "Ferramentas", tabBarIcon: ({ color, size }) => <Feather name="grid" color={color} size={size} /> }} />
       <Tabs.Screen name="ajustes" options={{ title: "Ajustes", tabBarIcon: ({ color, size }) => <Feather name="settings" color={color} size={size} /> }} />
