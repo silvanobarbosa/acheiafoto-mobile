@@ -8,18 +8,13 @@ import { theme } from "@/lib/theme";
 export default function Index() {
   const { data: session, isPending } = useSession();
 
-  // aviso de atualização (distribuição por APK) — não bloqueia o uso.
   useEffect(() => {
     checkForUpdate().then((u) => {
       if (u.hasUpdate && u.apkUrl) {
-        Alert.alert(
-          "Atualização disponível",
-          `Versão ${u.version} pronta.${u.notes ? `\n\n${u.notes}` : ""}`,
-          [
-            { text: "Depois", style: "cancel" },
-            { text: "Baixar", onPress: () => Linking.openURL(u.apkUrl!) },
-          ],
-        );
+        Alert.alert("Atualização disponível", `Versão ${u.version} pronta.${u.notes ? `\n\n${u.notes}` : ""}`, [
+          { text: "Depois", style: "cancel" },
+          { text: "Baixar", onPress: () => Linking.openURL(u.apkUrl!) },
+        ]);
       }
     });
   }, []);
@@ -31,6 +26,5 @@ export default function Index() {
       </View>
     );
   }
-
-  return <Redirect href={session ? "/gallery" : "/login"} />;
+  return <Redirect href={session ? "/(tabs)" : "/login"} />;
 }
