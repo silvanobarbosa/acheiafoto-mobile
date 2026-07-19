@@ -2,7 +2,7 @@
   "expo": {
     "name": "Achei a Foto",
     "slug": "acheiafoto-mobile",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "acheiafoto",
@@ -10,7 +10,7 @@
     "backgroundColor": "#1c1c1a",
     "ios": {
       "bundleIdentifier": "com.reverblabs.acheiafoto",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "supportsTablet": true,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "O Achei a Foto acessa suas fotos para organizá-las e ajudar você a encontrá-las. As imagens ficam no seu aparelho."
@@ -18,7 +18,7 @@
     },
     "android": {
       "package": "com.reverblabs.acheiafoto",
-      "versionCode": 1,
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#1c1c1a",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -34,7 +34,11 @@
       "expo-router",
       [
         "expo-splash-screen",
-        { "backgroundColor": "#1c1c1a", "image": "./assets/images/splash-icon.png", "imageWidth": 96 }
+        {
+          "backgroundColor": "#1c1c1a",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 96
+        }
       ],
       "expo-secure-store",
       "expo-image",
@@ -48,7 +52,10 @@
       ],
       [
         "expo-notifications",
-        { "icon": "./assets/images/icon.png", "color": "#fbbf24" }
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#fbbf24"
+        }
       ]
     ],
     "experiments": {

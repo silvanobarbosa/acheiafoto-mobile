@@ -12,11 +12,21 @@ export default function Login() {
   const [error, setError] = useState("");
 
   const onSubmit = async () => {
+    // normaliza o e-mail: teclados de celular adicionam espaço/maiúscula/autocorreção,
+    // o que fazia o better-auth recusar com "Invalid email".
+    const cleanEmail = email.trim().toLowerCase().replace(/\s+/g, "");
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cleanEmail)) {
+      setError("E-mail inválido — confira o endereço.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      const { error: err } = await signIn.email({ email: email.trim(), password });
-      if (err) throw new Error(err.message || "E-mail ou senha inválidos");
+      const { error: err } = await signIn.email({ email: cleanEmail, password });
+      if (err) {
+        const m = err.message || "";
+        throw new Error(/invalid email/i.test(m) ? "E-mail inválido — confira o endereço." : (m || "E-mail ou senha inválidos"));
+      }
       router.replace("/gallery");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao entrar");
@@ -35,7 +45,8 @@ export default function Login() {
         <TextInput
           style={s.input} placeholder="voce@exemplo.com" placeholderTextColor={theme.muted}
           autoCapitalize="none" keyboardType="email-address" autoComplete="email"
-          value={email} onChangeText={setEmail}
+          autoCorrect={false} spellCheck={false} textContentType="emailAddress" inputMode="email"
+          value={email} onChangeText={(t) => setEmail(t.replace(/\s+/g, ""))}
         />
         <TextInput
           style={s.input} placeholder="Senha" placeholderTextColor={theme.muted}
