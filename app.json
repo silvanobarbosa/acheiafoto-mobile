@@ -85,9 +85,7 @@
       }
     },
     "owner": "reverblabss-team",
-    "runtimeVersion": {
-      "policy": "fingerprint"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/fcbbfecb-b704-4560-951b-803793d2aef0"
     }
