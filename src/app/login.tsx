@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Image } from "react-native";
 import { useRouter } from "expo-router";
 import { signIn } from "@/lib/auth";
 import { theme, radius } from "@/lib/theme";
@@ -38,7 +38,8 @@ export default function Login() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={s.container}>
       <View style={s.inner}>
-        <Text style={s.logo}>📷 Achei a Foto</Text>
+        <Image source={require("../../assets/images/logo.png")} style={s.logoImg} resizeMode="contain" />
+        <Text style={s.logo}>Achei a Foto</Text>
         <Text style={s.title}>Bem-vindo de volta</Text>
         <Text style={s.sub}>Entre para ver e organizar suas memórias.</Text>
 
@@ -67,6 +68,7 @@ export default function Login() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.bg, justifyContent: "center" },
   inner: { padding: 24, gap: 12 },
+  logoImg: { width: 96, height: 96, alignSelf: "center", marginBottom: 4 },
   logo: { color: theme.text, fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 8 },
   title: { color: theme.text, fontSize: 26, fontWeight: "700", textAlign: "center" },
   sub: { color: theme.muted, fontSize: 14, textAlign: "center", marginBottom: 12 },

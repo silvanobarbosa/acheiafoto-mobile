@@ -2,7 +2,7 @@
   "expo": {
     "name": "Achei a Foto",
     "slug": "acheiafoto-mobile",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "acheiafoto",
@@ -10,7 +10,7 @@
     "backgroundColor": "#1c1c1a",
     "ios": {
       "bundleIdentifier": "com.reverblabs.acheiafoto",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "supportsTablet": true,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "O Achei a Foto acessa suas fotos para organizá-las e ajudar você a encontrá-las. As imagens ficam no seu aparelho."
@@ -18,7 +18,7 @@
     },
     "android": {
       "package": "com.reverblabs.acheiafoto",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "backgroundColor": "#1c1c1a",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
