@@ -4,6 +4,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useSession } from "@/lib/auth";
+import { DevicePhotosProvider } from "@/lib/devicephotos";
 import { checkForUpdate } from "@/lib/update";
 import { theme } from "@/lib/theme";
 
@@ -47,7 +48,9 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style="light" />
-      <Stack
+      <DevicePhotosProvider>
+
+        <Stack
         screenOptions={{
           headerStyle: { backgroundColor: theme.bg },
           headerTintColor: theme.text,
@@ -62,7 +65,9 @@ export default function RootLayout() {
         <Stack.Protected guard={!authed}>
           <Stack.Screen name="login" options={{ headerShown: false }} />
         </Stack.Protected>
-      </Stack>
+        </Stack>
+
+      </DevicePhotosProvider>
     </>
   );
 }

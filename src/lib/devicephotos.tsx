@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import * as MediaLibrary from "expo-media-library";
 
 export type DevicePhoto = { id: string; uri: string; creationTime: number };
@@ -6,15 +6,30 @@ export type DevicePhoto = { id: string; uri: string; creationTime: number };
 /** granted = acesso total | limited = usuário escolheu "Selecionar fotos" | denied = negou */
 export type PermState = "loading" | "granted" | "limited" | "denied";
 
+type Ctx = {
+  perm: PermState;
+  photos: DevicePhoto[];
+  total: number;
+  loadingMore: boolean;
+  error: string | null;
+  loadMore: () => Promise<void>;
+  ask: () => Promise<boolean>;
+};
+
+const DevicePhotosContext = createContext<Ctx | null>(null);
+
+const PAGE = 90;
+
 /**
- * Hook central de fotos do aparelho: pede permissão (só FOTOS), carrega recentes + total.
+ * Galeria do aparelho — UMA instância compartilhada por todo o app.
  *
- * Por que expõe `limited` e `error` separados: no Android 13+ o usuário pode conceder
- * "Selecionar fotos" (acesso parcial). Nesse caso a galeria volta quase vazia e o app
- * mostrava só "nenhuma foto encontrada" — o usuário não tinha como saber que o problema
- * era a permissão. Falha invisível é a pior: some sem deixar rastro pra investigar.
+ * Por que provider e não um hook por tela: antes Home(60), Buscar(90) e Ferramenta(12) tinham
+ * cada uma seu próprio hook. As abas ficam montadas, então navegar disparava até TRÊS pedidos
+ * de permissão e TRÊS `getAssetsAsync` concorrentes — e cada chamada devolve `totalCount`, que
+ * varre a biblioteca inteira. Em galeria grande isso trava a UI (o Android acusa "app travando")
+ * e as fotos não chegam. Uma consulta só, compartilhada, elimina a causa.
  */
-export function useDevicePhotos(pageSize = 60) {
+export function DevicePhotosProvider({ children }: { children: React.ReactNode }) {
   const [perm, setPerm] = useState<PermState>("loading");
   const [photos, setPhotos] = useState<DevicePhoto[]>([]);
   const [total, setTotal] = useState(0);
@@ -25,7 +40,7 @@ export function useDevicePhotos(pageSize = 60) {
   const load = useCallback(async (cursor?: string) => {
     const page = await MediaLibrary.getAssetsAsync({
       mediaType: "photo",
-      first: pageSize,
+      first: PAGE,
       sortBy: [["creationTime", false]],
       after: cursor,
     });
@@ -34,7 +49,7 @@ export function useDevicePhotos(pageSize = 60) {
     setAfter(page.endCursor);
     setTotal(page.totalCount);
     return page.hasNextPage;
-  }, [pageSize]);
+  }, []);
 
   const ask = useCallback(async () => {
     try {
@@ -43,12 +58,11 @@ export function useDevicePhotos(pageSize = 60) {
       // prompt de "acessar música e áudio" reaparecia em toda tela.
       const res = await MediaLibrary.requestPermissionsAsync(false, ["photo"]);
       if (!res.granted) { setPerm("denied"); return false; }
-      // accessPrivileges: 'all' | 'limited' | 'none' — 'limited' = só as fotos selecionadas.
       setPerm(res.accessPrivileges === "limited" ? "limited" : "granted");
       await load();
       return true;
     } catch (e) {
-      // Erro real de leitura da galeria não pode virar "nenhuma foto" silencioso.
+      // Erro real de leitura não pode virar "nenhuma foto" silencioso.
       setError(e instanceof Error ? e.message : "Falha ao ler a galeria");
       setPerm("denied");
       return false;
@@ -70,5 +84,18 @@ export function useDevicePhotos(pageSize = 60) {
     }
   }, [after, load, loadingMore]);
 
-  return { perm, photos, total, loadingMore, loadMore, ask, error };
+  const value = useMemo<Ctx>(
+    () => ({ perm, photos, total, loadingMore, error, loadMore, ask }),
+    [perm, photos, total, loadingMore, error, loadMore, ask],
+  );
+
+  return <DevicePhotosContext.Provider value={value}>{children}</DevicePhotosContext.Provider>;
+}
+
+/** Consome a galeria compartilhada. O argumento antigo (pageSize) foi removido de propósito:
+ *  cada tela agora fatia o que precisa de uma lista única, em vez de abrir consulta própria. */
+export function useDevicePhotos(): Ctx {
+  const ctx = useContext(DevicePhotosContext);
+  if (!ctx) throw new Error("useDevicePhotos precisa estar dentro de <DevicePhotosProvider>");
+  return ctx;
 }

@@ -22,7 +22,7 @@ export default function Ferramenta() {
   const { key } = useLocalSearchParams<{ key: string }>();
   const router = useRouter();
   const { plan } = usePlan();
-  const { photos } = useDevicePhotos(12);
+  const { photos } = useDevicePhotos();
   const tool = TOOLS.find((t) => t.key === key);
   const locked = tool ? !hasFeature(plan, tool.feature as Feature) : false;
 

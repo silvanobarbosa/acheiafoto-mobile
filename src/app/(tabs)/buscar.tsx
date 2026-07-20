@@ -11,7 +11,7 @@ const GAP = 3;
 const SIZE = (W - GAP * (COLS + 1)) / COLS;
 
 export default function Buscar() {
-  const { perm, photos, total, loadMore, loadingMore, ask } = useDevicePhotos(90);
+  const { perm, photos, total, loadMore, loadingMore, ask } = useDevicePhotos();
   const [q, setQ] = useState("");
 
   // sem ML: filtra por ano/mês digitado (ex: "2024", "julho"). Vazio = tudo.
