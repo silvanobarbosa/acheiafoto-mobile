@@ -1,5 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import * as MediaLibrary from "expo-media-library";
+// IMPORTANTE: importar de "expo-media-library/legacy".
+// No SDK 57 o `getAssetsAsync` do entrypoint principal foi DEPRECIADO e passou a LANCAR
+// erro — o app mostrava "nenhuma foto encontrada" com a galeria cheia. O proprio erro so
+// apareceu depois que passamos a exibir a falha em vez de engolir.
+import * as MediaLibrary from "expo-media-library/legacy";
 
 export type DevicePhoto = { id: string; uri: string; creationTime: number };
 
