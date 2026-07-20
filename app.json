@@ -80,7 +80,10 @@
     "owner": "reverblabss-team",
     "runtimeVersion": "1.0.0",
     "updates": {
-      "url": "https://u.expo.dev/fcbbfecb-b704-4560-951b-803793d2aef0"
+      "enabled": false,
+      "url": "https://u.expo.dev/fcbbfecb-b704-4560-951b-803793d2aef0",
+      "checkAutomatically": "ON_ERROR_RECOVERY",
+      "fallbackToCacheTimeout": 0
     }
   }
 }
