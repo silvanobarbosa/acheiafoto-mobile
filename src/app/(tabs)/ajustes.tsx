@@ -1,6 +1,5 @@
 import { View, Text, ScrollView, Pressable, StyleSheet, Switch } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { useState } from "react";
 import { theme, radius } from "@/lib/theme";
 import { usePlan } from "@/lib/plan";
@@ -17,7 +16,6 @@ function Toggle({ label }: { label: string }) {
 }
 
 export default function Ajustes() {
-  const router = useRouter();
   const { plan, email, name } = usePlan();
   const [signingOut, setSigningOut] = useState(false);
   const isPremium = plan === "premium";
@@ -25,8 +23,8 @@ export default function Ajustes() {
 
   const logout = async () => {
     setSigningOut(true);
+    // signOut limpa a sessão → o guard de rota protegida no _layout leva pro login sozinho.
     try { await signOut(); } catch { /* segue */ }
-    router.replace("/login");
   };
 
   return (

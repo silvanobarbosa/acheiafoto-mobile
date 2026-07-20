@@ -27,7 +27,9 @@ export default function Login() {
     try {
       const { error: err } = await signIn.email({ email: clean, password });
       if (err) { const m = err.message || ""; throw new Error(/invalid email/i.test(m) ? "E-mail inválido — confira o endereço." : (m || "E-mail ou senha inválidos")); }
-      router.replace("/inicio");
+      // Sessão setada → o guard de rota protegida no _layout redireciona pras abas sozinho.
+      // O replace só garante saída imediata da tela de login.
+      router.replace("/");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao entrar");
     } finally { setLoading(false); }
