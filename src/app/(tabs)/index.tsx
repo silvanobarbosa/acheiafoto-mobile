@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable, StyleSheet, Dimensions, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet, Dimensions, ActivityIndicator, Linking } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
@@ -14,7 +14,7 @@ const THUMB = (W - 16 * 2 - 8 * 2) / 3;
 export default function Home() {
   const router = useRouter();
   const { plan, name } = usePlan();
-  const { perm, photos, total, ask } = useDevicePhotos();
+  const { perm, photos, total, ask, error } = useDevicePhotos();
   const isPremium = plan === "premium";
   const hour = new Date().getHours();
   const greet = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
@@ -80,11 +80,31 @@ export default function Home() {
           <Feather name="image" size={28} color={theme.primary} />
           <Text style={{ color: theme.text, fontWeight: "600" }}>Libere o acesso às fotos</Text>
           <Text style={{ color: theme.muted, fontSize: 13, textAlign: "center" }}>O app organiza as fotos do seu aparelho — tudo local.</Text>
+          {!!error && <Text style={{ color: theme.warm, fontSize: 12, textAlign: "center" }}>{error}</Text>}
           <Pressable style={s.btn} onPress={ask}><Text style={s.btnT}>Permitir acesso</Text></Pressable>
+          <Pressable onPress={() => Linking.openSettings()}>
+            <Text style={{ color: theme.primary, fontSize: 12 }}>Abrir ajustes do Android</Text>
+          </Pressable>
+        </View>
+      ) : perm === "limited" ? (
+        // Android 13+: usuário escolheu "Selecionar fotos". A galeria vem quase vazia e antes
+        // isso aparecia como "nenhuma foto" — sem pista do motivo real.
+        <View style={[s.card, { alignItems: "center", gap: 10 }]}>
+          <Feather name="alert-triangle" size={26} color={theme.warm} />
+          <Text style={{ color: theme.text, fontWeight: "600" }}>Você liberou só algumas fotos</Text>
+          <Text style={{ color: theme.muted, fontSize: 13, textAlign: "center" }}>
+            Por isso aparecem {total.toLocaleString("pt-BR")} de {total === 1 ? "foto" : "fotos"} apenas.
+            Para o app organizar tudo, permita o acesso a <Text style={{ color: theme.text }}>todas</Text> as fotos.
+          </Text>
+          <Pressable style={s.btn} onPress={() => Linking.openSettings()}>
+            <Text style={s.btnT}>Permitir todas as fotos</Text>
+          </Pressable>
         </View>
       ) : photos.length === 0 ? (
-        <View style={[s.card, { alignItems: "center" }]}>
-          <Text style={{ color: theme.muted }}>Nenhuma foto encontrada no aparelho.</Text>
+        <View style={[s.card, { alignItems: "center", gap: 8 }]}>
+          <Text style={{ color: theme.muted, textAlign: "center" }}>Nenhuma foto encontrada no aparelho.</Text>
+          {!!error && <Text style={{ color: theme.warm, fontSize: 12, textAlign: "center" }}>{error}</Text>}
+          <Pressable onPress={ask}><Text style={{ color: theme.primary, fontSize: 13 }}>Tentar de novo</Text></Pressable>
         </View>
       ) : (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>

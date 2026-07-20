@@ -18,10 +18,24 @@ function gt(a: string, b: string): boolean {
 
 export async function checkForUpdate(): Promise<UpdateInfo> {
   try {
-    const current = Application.nativeApplicationVersion || "0.0.0";
     const res = await fetch(`${API_BASE}/api/app/version`, { headers: { accept: "application/json" } });
     if (!res.ok) return { hasUpdate: false };
-    const j = (await res.json()) as { version?: string; apkUrl?: string; notes?: string };
+    const j = (await res.json()) as { version?: string; versionCode?: number; apkUrl?: string; notes?: string };
+
+    // Preferir versionCode: o EAS incrementa sozinho a cada build (autoIncrement), enquanto o
+    // versionName depende de alguém lembrar de editar o app.json — e isso JÁ drifitou (ficou
+    // preso em 1.0.4 enquanto o site anunciava 1.0.10), fazendo o app pedir atualização em
+    // TODA abertura, pra sempre. Comparação por número é a que não depende de disciplina humana.
+    const localCode = Number(Application.nativeBuildVersion);
+    if (j.versionCode && Number.isFinite(localCode) && localCode > 0) {
+      if (Number(j.versionCode) > localCode) {
+        return { hasUpdate: true, version: j.version, apkUrl: j.apkUrl, notes: j.notes };
+      }
+      return { hasUpdate: false };
+    }
+
+    // Fallback: comparação por versionName (servidor antigo, sem versionCode).
+    const current = Application.nativeApplicationVersion || "0.0.0";
     if (j.version && gt(j.version, current)) {
       return { hasUpdate: true, version: j.version, apkUrl: j.apkUrl, notes: j.notes };
     }
