@@ -1,23 +1,29 @@
-import { useEffect, useRef } from "react";
-import { View, ActivityIndicator, Alert, Linking } from "react-native";
+import { useEffect } from "react";
+import { Alert, Linking } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as SplashScreen from "expo-splash-screen";
 import { useSession } from "@/lib/auth";
 import { checkForUpdate } from "@/lib/update";
 import { theme } from "@/lib/theme";
 
-// Âncora = a área autenticada é o destino padrão da navegação. Sem isto, um re-render
-// (ex.: refetch da sessão do better-auth) podia resetar a pilha e jogar o usuário de volta
-// pra tela inicial ("volta pro Início em uma série de acessos").
+// Segura o splash NATIVO até a sessão resolver. Assim o <Stack> fica SEMPRE montado (não
+// trocamos a árvore React entre "splash" e "stack") — isso evita o erro de concurrent
+// rendering no root que deixava o app instável / sem responder a toques.
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// Âncora = área autenticada é o destino padrão (re-render de sessão não reseta a navegação).
 export const unstable_settings = { anchor: "(tabs)" };
 
-// Gate por ROTAS PROTEGIDAS (não mais por uma tela-index que fazia router.replace). O
-// expo-router mostra só as telas cujo guard é true e redireciona sozinho quando a sessão
-// muda (login entra → abas; logout → login). Zero navegação manual = zero bounce.
+// Gate por ROTAS PROTEGIDAS: o expo-router mostra só as telas cujo guard é true e redireciona
+// sozinho quando a sessão muda (login → abas; logout → login). Zero navegação manual.
 export default function RootLayout() {
   const { data: session, isPending } = useSession();
-  const resolvedOnce = useRef(false);
-  if (!isPending) resolvedOnce.current = true;
+
+  // Esconde o splash nativo assim que a sessão resolve (cobre o flash login↔abas no boot).
+  useEffect(() => {
+    if (!isPending) SplashScreen.hideAsync().catch(() => {});
+  }, [isPending]);
 
   useEffect(() => {
     checkForUpdate()
@@ -35,16 +41,6 @@ export default function RootLayout() {
       })
       .catch(() => {});
   }, []);
-
-  // Splash só até a PRIMEIRA resolução da sessão — não pisca em refetches posteriores.
-  if (!resolvedOnce.current) {
-    return (
-      <View style={{ flex: 1, backgroundColor: theme.bg, alignItems: "center", justifyContent: "center" }}>
-        <StatusBar style="light" />
-        <ActivityIndicator color={theme.primary} size="large" />
-      </View>
-    );
-  }
 
   const authed = !!session;
 
