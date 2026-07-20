@@ -26,7 +26,9 @@ export function useDevicePhotos(pageSize = 60) {
   }, [pageSize]);
 
   const ask = useCallback(async () => {
-    const res = await MediaLibrary.requestPermissionsAsync(false);
+    // Só FOTOS (granular): sem isso o expo-media-library pede imagens+vídeo+ÁUDIO, e o prompt
+    // de "acessar música e áudio" reaparecia em toda tela. O app só lê imagens.
+    const res = await MediaLibrary.requestPermissionsAsync(false, ["photo"]);
     if (!res.granted) { setPerm("denied"); return false; }
     setPerm("granted");
     await load();
