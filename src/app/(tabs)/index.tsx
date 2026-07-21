@@ -109,7 +109,10 @@ export default function Home() {
       ) : (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
           {photos.slice(0, 12).map((p) => (
-            <Image key={p.id} source={{ uri: p.uri }} style={{ width: THUMB, height: THUMB, borderRadius: radius.sm, backgroundColor: theme.surface }} contentFit="cover" transition={120} />
+            // Toque abre a foto em tela cheia. Antes era <Image> solto: tocar nao fazia nada.
+            <Pressable key={p.id} onPress={() => router.push(`/foto/${p.id}`)}>
+              <Image source={{ uri: p.uri }} style={{ width: THUMB, height: THUMB, borderRadius: radius.sm, backgroundColor: theme.surface }} contentFit="cover" transition={120} />
+            </Pressable>
           ))}
         </View>
       )}

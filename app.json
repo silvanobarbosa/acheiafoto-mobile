@@ -65,7 +65,8 @@
           "icon": "./assets/images/icon.png",
           "color": "#fbbf24"
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,

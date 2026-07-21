@@ -61,6 +61,7 @@ export default function RootLayout() {
         <Stack.Protected guard={authed}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="ferramenta/[key]" options={{ title: "" }} />
+          <Stack.Screen name="foto/[id]" options={{ title: "" }} />
         </Stack.Protected>
         <Stack.Protected guard={!authed}>
           <Stack.Screen name="login" options={{ headerShown: false }} />

@@ -1,32 +1,87 @@
-import { View, Text, ScrollView, Pressable, StyleSheet, Dimensions } from "react-native";
+import { useEffect, useState } from "react";
+import { View, Text, ScrollView, Pressable, StyleSheet, Dimensions, ActivityIndicator, Alert } from "react-native";
 import { Image } from "expo-image";
 import { Feather } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import * as MediaLibrary from "expo-media-library/legacy";
 import { theme, radius } from "@/lib/theme";
 import { usePlan } from "@/lib/plan";
 import { useDevicePhotos } from "@/lib/devicephotos";
 import { TOOLS, hasFeature, type Feature } from "@/lib/entitlements";
+import {
+  acharDuplicatas, acharAlbunsWhatsApp, agruparPorPeriodo, formatarBytes, somarBytes,
+  type GrupoDuplicata, type AlbumWhats, type PeriodoLinha,
+} from "@/lib/analise";
 
 const W = Dimensions.get("window").width;
 const TH = (W - 16 * 2 - 8 * 2) / 3;
 
-const CONTENT: Record<string, { stats: [string, string][]; body: string }> = {
-  whatsapp: { stats: [["1.284", "lixo detectado"], ["3,2 GB", "a liberar"], ["8.940", "fotos reais"]], body: "A IA separa fotos reais de memes, boletos e “bom dia”. Selecione e limpe em segundos." },
-  scanner: { stats: [["218", "escaneadas"], ["12", "negativos"], ["4K", "resolução"]], body: "Digitalize fotos impressas e negativos antigos, com correção de cor e melhoria por IA." },
-  timeline: { stats: [["6", "pessoas"], ["137,7k", "memórias"], ["18", "anos"]], body: "Suas memórias organizadas por pessoa e por época, automaticamente." },
-  duplicates: { stats: [["42", "grupos"], ["1,8 GB", "recuperável"], ["156", "cópias"]], body: "Encontra fotos repetidas, você escolhe qual manter e recupera espaço." },
-  vault: { stats: [["4", "álbuns"], ["892", "protegidas"], ["🔒", "biometria"]], body: "Guarde as memórias mais preciosas com proteção extra, só no aparelho." },
-};
-
+/**
+ * Tela de ferramenta — agora com ANÁLISE REAL.
+ *
+ * Antes cada ferramenta mostrava números fixos no código ("1.284 lixo detectado", "42 grupos",
+ * "3,2 GB a liberar") e um botão que só fechava a tela. Era maquete apresentada como produto.
+ * Agora: duplicatas, WhatsApp e linha do tempo medem a galeria de verdade; scanner e cofre
+ * dizem honestamente que estão em desenvolvimento, em vez de inventar estatística.
+ */
 export default function Ferramenta() {
   const { key } = useLocalSearchParams<{ key: string }>();
   const router = useRouter();
   const { plan } = usePlan();
-  const { photos } = useDevicePhotos();
+  const { photos, ask } = useDevicePhotos();
   const tool = TOOLS.find((t) => t.key === key);
   const locked = tool ? !hasFeature(plan, tool.feature as Feature) : false;
 
+  const [carregando, setCarregando] = useState(true);
+  const [dups, setDups] = useState<GrupoDuplicata[]>([]);
+  const [espaco, setEspaco] = useState(0);
+  const [albuns, setAlbuns] = useState<AlbumWhats[]>([]);
+  const [periodos, setPeriodos] = useState<PeriodoLinha[]>([]);
+
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      setCarregando(true);
+      try {
+        if (key === "duplicates") {
+          const g = await acharDuplicatas(photos);
+          if (!vivo) return;
+          setDups(g);
+          const sobrando = g.flatMap((x) => x.fotos.slice(1)); // tudo menos 1 cópia de cada grupo
+          setEspaco(await somarBytes(sobrando));
+        } else if (key === "whatsapp") {
+          const a = await acharAlbunsWhatsApp();
+          if (vivo) setAlbuns(a);
+        } else if (key === "timeline") {
+          if (vivo) setPeriodos(agruparPorPeriodo(photos));
+        }
+      } finally {
+        if (vivo) setCarregando(false);
+      }
+    })();
+    return () => { vivo = false; };
+  }, [key, photos]);
+
   if (!tool) return <View style={{ flex: 1, backgroundColor: theme.bg }} />;
+
+  const apagarIds = (ids: string[], titulo: string) => {
+    if (!ids.length) return;
+    Alert.alert(titulo, `${ids.length} ${ids.length === 1 ? "foto vai" : "fotos vão"} para a lixeira do aparelho.`, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Apagar",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const ok = await MediaLibrary.deleteAssetsAsync(ids);
+            if (ok) { await ask(); router.back(); }
+          } catch {
+            Alert.alert("Não foi possível apagar", "O Android pode ter negado a permissão.");
+          }
+        },
+      },
+    ]);
+  };
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
@@ -34,32 +89,95 @@ export default function Ferramenta() {
 
       {locked ? (
         <View style={[s.card, { alignItems: "center", gap: 12, marginTop: 24, paddingVertical: 32 }]}>
-          <View style={[s.iconBox, { backgroundColor: "rgba(251,146,60,0.2)", width: 60, height: 60, borderRadius: 20 }]}><Feather name="award" size={28} color={theme.warm} /></View>
+          <View style={[s.iconBox, { backgroundColor: "rgba(251,146,60,0.2)", width: 60, height: 60, borderRadius: 20 }]}>
+            <Feather name="award" size={28} color={theme.warm} />
+          </View>
           <Text style={{ color: theme.text, fontSize: 18, fontWeight: "700" }}>Recurso Premium</Text>
           <Text style={{ color: theme.muted, fontSize: 13, textAlign: "center" }}>{tool.desc} faz parte do Premium.</Text>
           <Text style={{ color: theme.muted, fontSize: 12, textAlign: "center" }}>Assine em acheiafoto.reverblabs.com.br para liberar.</Text>
         </View>
-      ) : (
+      ) : carregando ? (
+        <View style={{ alignItems: "center", paddingVertical: 48, gap: 12 }}>
+          <ActivityIndicator color={theme.primary} size="large" />
+          <Text style={{ color: theme.muted, fontSize: 13 }}>Analisando suas fotos…</Text>
+        </View>
+      ) : key === "duplicates" ? (
         <>
-          <Text style={{ color: theme.muted, fontSize: 14, marginBottom: 16 }}>{CONTENT[tool.key]?.body}</Text>
-          <View style={{ flexDirection: "row", gap: 8, marginBottom: 20 }}>
-            {(CONTENT[tool.key]?.stats || []).map(([v, l], i) => (
-              <View key={i} style={[s.stat]}>
-                <Text style={{ color: theme.text, fontSize: 18, fontWeight: "700" }}>{v}</Text>
-                <Text style={{ color: theme.muted, fontSize: 11 }}>{l}</Text>
+          <Text style={s.resumo}>
+            {dups.length === 0
+              ? "Nenhuma cópia encontrada nas fotos analisadas."
+              : `${dups.length} ${dups.length === 1 ? "grupo" : "grupos"} de cópias · ${formatarBytes(espaco)} recuperáveis`}
+          </Text>
+          {dups.map((g) => (
+            <View key={g.chave} style={[s.card, { marginBottom: 12 }]}>
+              <Text style={{ color: theme.text, fontWeight: "600", marginBottom: 8 }}>{g.fotos.length} cópias idênticas</Text>
+              <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+                {g.fotos.slice(0, 6).map((p) => (
+                  <Image key={p.id} source={{ uri: p.uri }} style={{ width: TH, height: TH, borderRadius: radius.sm }} contentFit="cover" />
+                ))}
               </View>
-            ))}
-          </View>
-          <Text style={{ color: theme.text, fontWeight: "700", marginBottom: 10 }}>Prévia</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {photos.slice(0, 9).map((p) => (
-              <Image key={p.id} source={{ uri: p.uri }} style={{ width: TH, height: TH, borderRadius: radius.sm, backgroundColor: theme.surface }} contentFit="cover" />
-            ))}
-          </View>
-          <Pressable style={s.btn} onPress={() => router.back()}>
-            <Text style={s.btnT}>Aplicar em {tool.label.split(" ")[0]}</Text>
-          </Pressable>
+              <Pressable style={s.btn} onPress={() => apagarIds(g.fotos.slice(1).map((p) => p.id), "Manter 1 e apagar o resto?")}>
+                <Text style={s.btnT}>Manter 1 e apagar as outras</Text>
+              </Pressable>
+            </View>
+          ))}
         </>
+      ) : key === "whatsapp" ? (
+        <>
+          <Text style={s.resumo}>
+            {albuns.length === 0
+              ? "Nenhuma pasta do WhatsApp encontrada neste aparelho."
+              : `${albuns.length} ${albuns.length === 1 ? "pasta" : "pastas"} do WhatsApp na galeria`}
+          </Text>
+          {albuns.map((a) => (
+            <View key={a.id} style={[s.card, { marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 12 }]}>
+              <View style={[s.iconBox, { backgroundColor: "rgba(52,211,153,0.15)" }]}>
+                <Feather name="message-circle" size={20} color="#34d399" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.text, fontWeight: "600" }}>{a.titulo}</Text>
+                <Text style={{ color: theme.muted, fontSize: 12 }}>{a.total.toLocaleString("pt-BR")} itens</Text>
+              </View>
+            </View>
+          ))}
+          {albuns.length > 0 && (
+            <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>
+              Abra a aba Buscar para selecionar e apagar o que não quer guardar.
+            </Text>
+          )}
+        </>
+      ) : key === "timeline" ? (
+        <>
+          <Text style={s.resumo}>{periodos.length} {periodos.length === 1 ? "período" : "períodos"} com fotos</Text>
+          {periodos.slice(0, 24).map((p) => (
+            <View key={`${p.ano}-${p.mes}`} style={[s.card, { marginBottom: 10 }]}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+                <Text style={{ color: theme.text, fontWeight: "600", textTransform: "capitalize" }}>{p.rotulo}</Text>
+                <Text style={{ color: theme.muted, fontSize: 12 }}>{p.fotos.length}</Text>
+              </View>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {p.fotos.slice(0, 3).map((f) => (
+                  <Pressable key={f.id} onPress={() => router.push(`/foto/${f.id}`)}>
+                    <Image source={{ uri: f.uri }} style={{ width: TH, height: TH, borderRadius: radius.sm }} contentFit="cover" />
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ))}
+        </>
+      ) : (
+        // Scanner e Cofre exigem câmera com correção de perspectiva e área protegida por
+        // biometria. Não estão prontos — dizer isso é melhor que mostrar número inventado.
+        <View style={[s.card, { alignItems: "center", gap: 12, marginTop: 24, paddingVertical: 32 }]}>
+          <View style={[s.iconBox, { backgroundColor: theme.surface2, width: 60, height: 60, borderRadius: 20 }]}>
+            <Feather name="tool" size={26} color={theme.muted} />
+          </View>
+          <Text style={{ color: theme.text, fontSize: 17, fontWeight: "700" }}>Em desenvolvimento</Text>
+          <Text style={{ color: theme.muted, fontSize: 13, textAlign: "center" }}>
+            {tool.desc}. Esta ferramenta ainda não está pronta — preferimos avisar a mostrar
+            resultado que não é real.
+          </Text>
+        </View>
       )}
     </ScrollView>
   );
@@ -67,8 +185,8 @@ export default function Ferramenta() {
 
 const s = StyleSheet.create({
   card: { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: radius.lg, padding: 16 },
-  iconBox: { alignItems: "center", justifyContent: "center" },
-  stat: { flex: 1, backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: radius.md, padding: 12, alignItems: "center" },
-  btn: { backgroundColor: theme.primary, borderRadius: radius.md, paddingVertical: 14, alignItems: "center", marginTop: 24 },
+  iconBox: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  resumo: { color: theme.muted, fontSize: 14, marginBottom: 16 },
+  btn: { backgroundColor: theme.primary, borderRadius: radius.md, paddingVertical: 12, alignItems: "center", marginTop: 12 },
   btnT: { color: theme.primaryText, fontWeight: "700" },
 });
