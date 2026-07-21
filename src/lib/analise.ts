@@ -1,4 +1,5 @@
 import * as MediaLibrary from "expo-media-library/legacy";
+import * as FileSystem from "expo-file-system/legacy";
 import type { DevicePhoto } from "./devicephotos";
 
 /**
@@ -25,7 +26,12 @@ export async function acharDuplicatas(fotos: DevicePhoto[], limite = 400): Promi
   for (const f of amostra) {
     try {
       const info = await MediaLibrary.getAssetInfoAsync(f.id);
-      const bytes = (info as unknown as { fileSize?: number }).fileSize ?? 0;
+      const uri = (info as unknown as { localUri?: string }).localUri || f.uri;
+      // TAMANHO REAL vem do FileSystem. A MediaLibrary NAO expoe fileSize (conferido nos
+      // tipos da lib): a versao anterior lia um campo inexistente, dava 0 e PULAVA toda
+      // foto — a tela dizia "nenhuma copia encontrada" mesmo com a galeria cheia de copias.
+      const st = await FileSystem.getInfoAsync(uri);
+      const bytes = st.exists ? (st as unknown as { size?: number }).size ?? 0 : 0;
       const w = (info as unknown as { width?: number }).width ?? 0;
       const h = (info as unknown as { height?: number }).height ?? 0;
       if (!bytes) continue;
@@ -34,7 +40,7 @@ export async function acharDuplicatas(fotos: DevicePhoto[], limite = 400): Promi
       lista.push(f);
       mapa.set(chave, lista);
     } catch {
-      /* asset ilegível: ignora em vez de derrubar a análise */
+      /* asset ilegivel: ignora em vez de derrubar a analise */
     }
   }
 
@@ -98,7 +104,9 @@ export async function somarBytes(fotos: DevicePhoto[]): Promise<number> {
   for (const f of fotos) {
     try {
       const info = await MediaLibrary.getAssetInfoAsync(f.id);
-      t += (info as unknown as { fileSize?: number }).fileSize ?? 0;
+      const uri = (info as unknown as { localUri?: string }).localUri || f.uri;
+      const st = await FileSystem.getInfoAsync(uri);
+      if (st.exists) t += (st as unknown as { size?: number }).size ?? 0;
     } catch { /* ignora */ }
   }
   return t;
