@@ -1,20 +1,15 @@
-import { Tabs, Redirect, useRootNavigationState } from "expo-router";
+import { Tabs, Redirect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useSession } from "@/lib/auth";
 import { theme } from "@/lib/theme";
 
 export default function TabsLayout() {
   const { data: session, isPending } = useSession();
-  const rootNav = useRootNavigationState();
 
-  // Não decide rota antes do router raiz existir.
-  //
-  // Redirecionar durante o PRIMEIRO render obriga o expo-router a carregar um módulo de rota
-  // que ainda não foi registrado — e isso falha com "Cannot find module", mata o ReactHost e
-  // deixa a tela preta no boot frio com sessão salva. Foi assim que quebrou tanto com
-  // <Stack.Protected> quanto com <Redirect> imediato (7 falhas em 3 boots, medidas).
-  // Esperar `rootNav?.key` é o guarda documentado pra isso.
-  if (!rootNav?.key) return null;
+  // Eu tinha posto aqui um `if (!useRootNavigationState()?.key) return null`, achando que o
+  // crash vinha de redirecionar cedo demais. Nao vinha: era o expo-network faltando. E o
+  // guarda tinha efeito colateral proprio — a chave nunca chegava e a tela ficava EM BRANCO
+  // pra sempre depois do login (app vivo, zero erro no log, nada desenhado). Removido.
 
   // Enquanto a sessão não resolve, não decide nada: o splash NATIVO ainda está na tela
   // (o layout raiz só o esconde quando isPending vira false). Devolver null aqui evita

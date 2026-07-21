@@ -21,6 +21,12 @@ ESPERA="${ESPERA:-25}"
 
 command -v adb >/dev/null || { echo "adb nao esta no PATH"; exit 2; }
 [ -f "$APK" ] || { echo "APK nao encontrado: $APK"; exit 2; }
+
+# No git-bash do Windows: `adb install` precisa de caminho WINDOWS, e `adb shell` precisa que
+# o MSYS NAO converta /sdcard/... em C:\Program Files\Git\sdcard\... Sao exigencias opostas,
+# entao converte a APK aqui e desliga a conversao para o resto.
+if command -v cygpath >/dev/null 2>&1; then APK=$(cygpath -w "$APK"); fi
+export MSYS_NO_PATHCONV=1
 adb get-state >/dev/null 2>&1 || { echo "nenhum device/emulador conectado"; exit 2; }
 
 # Padroes que significam "o JS morreu". Nao sao warnings: cada um deixa tela preta.
@@ -30,7 +36,18 @@ EMAIL="${2:-}"
 SENHA="${3:-}"
 
 echo "instalando $APK ..."
-adb install -r -d "$APK" >/dev/null
+if ! adb install -r -d "$APK" 2>&1 | tee /tmp/.smoke-install | grep -q "Success"; then
+  # INSTALL_FAILED_UPDATE_INCOMPATIBLE: o aparelho tem uma APK assinada com outra chave
+  # (tipico depois de testar um repack local). Desinstalar e a unica saida — e apaga a
+  # sessao, por isso a fase de login vem DEPOIS desta etapa.
+  if grep -q "signatures do not match" /tmp/.smoke-install; then
+    echo "  assinatura diferente da instalada — desinstalando antes"
+    adb uninstall "$PKG" >/dev/null 2>&1 || true
+    adb install "$APK" >/dev/null
+  else
+    cat /tmp/.smoke-install; exit 2
+  fi
+fi
 adb shell pm grant "$PKG" android.permission.READ_MEDIA_IMAGES >/dev/null 2>&1 || true
 
 # Fase de login: sem sessao salva, o teste nao exercita o caminho que quebra.
@@ -38,7 +55,18 @@ if [ -n "$EMAIL" ] && [ -n "$SENHA" ]; then
   echo "logando como $EMAIL ..."
   adb shell am force-stop "$PKG"
   adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
-  sleep "$ESPERA"
+
+  # ESPERA O ELEMENTO, nao um tempo fixo. Em instalacao nova, com galeria grande, o app fica
+  # mais de 25s no splash: o script digitava no vazio e os campos ficavam em branco — e os
+  # boots seguintes mediam o caso deslogado, dando verde falso.
+  pronto=0
+  for _ in $(seq 1 20); do
+    adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
+    if adb shell cat /sdcard/ui.xml 2>/dev/null | grep -q "Bem-vindo de volta"; then pronto=1; break; fi
+    sleep 5
+  done
+  [ "$pronto" = 1 ] || { echo "  ERRO: tela de login nao apareceu — abortando"; exit 3; }
+
   adb shell input tap 540 1183; sleep 1
   # `input text` engole caracteres em textos longos: digita em pedacos.
   echo "$EMAIL" | fold -w 10 | while read -r p; do adb shell input text "$p"; sleep 2; done
@@ -46,11 +74,17 @@ if [ -n "$EMAIL" ] && [ -n "$SENHA" ]; then
   adb shell input text "$SENHA"; sleep 3
   adb shell input keyevent 4; sleep 2
   adb shell input tap 540 1606; sleep 20
-  if adb shell dumpsys window 2>/dev/null | grep -q "mCurrentFocus.*$PKG"; then
-    echo "  sessao criada"
-  else
-    echo "  AVISO: nao confirmei o login — o teste abaixo pode nao cobrir o caso logado"
+  # VERIFICACAO DE VERDADE: le a tela. Checar foco de janela nao serve — o app "em foco" na
+  # tela de LOGIN passava como sessao criada, e os 3 boots seguintes mediam o caso deslogado,
+  # que e justamente o que NAO quebra. Este teste ja deu verde falso duas vezes assim.
+  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
+  tela=$(adb shell cat /sdcard/ui.xml 2>/dev/null | tr '>' '\n')
+  if echo "$tela" | grep -q "Bem-vindo de volta"; then
+    echo "  ERRO: continua na tela de login — sessao NAO foi criada."
+    echo "  Sem sessao, o teste mede o caso que nunca quebra. Abortando em vez de aprovar."
+    exit 3
   fi
+  echo "  sessao confirmada (app fora da tela de login)"
 fi
 
 falhas=0
