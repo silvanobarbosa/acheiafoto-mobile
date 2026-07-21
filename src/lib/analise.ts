@@ -11,6 +11,38 @@ import type { DevicePhoto } from "./devicephotos";
  * está em desenvolvimento em vez de inventar.
  */
 
+/**
+ * Carrega fotos para ANALISE, paginando a galeria inteira ate `max`.
+ *
+ * Por que nao usar a lista do DevicePhotosProvider: aquela lista e paginada para a UI (90 por
+ * vez, cresce conforme o usuario rola). As ferramentas liam ela e analisavam so as 90 mais
+ * recentes — mas escreviam o resultado como se fosse a galeria toda. Com 2.500 fotos no
+ * aparelho, "1 grupo de copias, 15 MB recuperaveis" era conclusao tirada de 3,6% do acervo.
+ * Numero real, escopo falso — que na pratica engana igual a estatistica inventada de antes.
+ *
+ * Devolve tambem o `total` da galeria para a tela poder dizer o que ficou de fora.
+ */
+export async function carregarParaAnalise(max = 2000): Promise<{ fotos: DevicePhoto[]; total: number }> {
+  const fotos: DevicePhoto[] = [];
+  let after: string | undefined;
+  let total = 0;
+
+  for (;;) {
+    const p = await MediaLibrary.getAssetsAsync({
+      mediaType: "photo",
+      first: 500,
+      sortBy: [["creationTime", false]],
+      after,
+    });
+    total = p.totalCount;
+    for (const a of p.assets) fotos.push({ id: a.id, uri: a.uri, creationTime: a.creationTime });
+    if (!p.hasNextPage || fotos.length >= max) break;
+    after = p.endCursor;
+  }
+
+  return { fotos: fotos.slice(0, max), total };
+}
+
 export type GrupoDuplicata = { chave: string; fotos: DevicePhoto[] };
 
 /**
@@ -80,8 +112,11 @@ export function agruparPorPeriodo(fotos: DevicePhoto[]): PeriodoLinha[] {
     const mes = d.getMonth();
     const k = `${ano}-${mes}`;
     if (!mapa.has(k)) {
+      // "janeiro de 2026" -> "Janeiro de 2026". O CSS `textTransform: capitalize` da RN
+      // capitaliza TODA palavra e produzia "Janeiro De 1970".
+      const bruto = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
       mapa.set(k, {
-        rotulo: d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
+        rotulo: bruto.charAt(0).toUpperCase() + bruto.slice(1),
         ano,
         mes,
         fotos: [],

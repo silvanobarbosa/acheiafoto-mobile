@@ -16,10 +16,12 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 // Âncora = área autenticada é o destino padrão (re-render de sessão não reseta a navegação).
 export const unstable_settings = { anchor: "(tabs)" };
 
-// Gate por ROTAS PROTEGIDAS: o expo-router mostra só as telas cujo guard é true e redireciona
-// sozinho quando a sessão muda (login → abas; logout → login). Zero navegação manual.
+// O gate de autenticação NÃO fica aqui — mora em (tabs)/_layout.tsx, como <Redirect>.
+// <Stack.Protected> quebrava o boot frio com sessão salva (tela preta); o histórico completo
+// está comentado lá.
 export default function RootLayout() {
-  const { data: session, isPending } = useSession();
+  // Só o isPending interessa aqui: o gate de autenticação mora em (tabs)/_layout.tsx.
+  const { isPending } = useSession();
 
   // Esconde o splash nativo assim que a sessão resolve (cobre o flash login↔abas no boot).
   useEffect(() => {
@@ -43,8 +45,6 @@ export default function RootLayout() {
       .catch(() => {});
   }, []);
 
-  const authed = !!session;
-
   return (
     <>
       <StatusBar style="light" />
@@ -58,14 +58,10 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: theme.bg },
         }}
       >
-        <Stack.Protected guard={authed}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="ferramenta/[key]" options={{ title: "" }} />
           <Stack.Screen name="foto/[id]" options={{ title: "" }} />
-        </Stack.Protected>
-        <Stack.Protected guard={!authed}>
           <Stack.Screen name="login" options={{ headerShown: false }} />
-        </Stack.Protected>
         </Stack>
 
       </DevicePhotosProvider>

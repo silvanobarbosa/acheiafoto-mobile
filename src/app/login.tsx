@@ -27,8 +27,8 @@ export default function Login() {
     try {
       const { error: err } = await signIn.email({ email: clean, password });
       if (err) { const m = err.message || ""; throw new Error(/invalid email/i.test(m) ? "E-mail inválido — confira o endereço." : (m || "E-mail ou senha inválidos")); }
-      // Sessão setada → o guard de rota protegida no _layout redireciona pras abas sozinho.
-      // O replace só garante saída imediata da tela de login.
+      // Sessão gravada. Entra nas abas. `replace` (não `push`) para o botão voltar do
+      // Android não trazer o usuário logado de volta pra tela de login.
       router.replace("/");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao entrar");

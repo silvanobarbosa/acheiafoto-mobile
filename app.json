@@ -2,7 +2,7 @@
   "expo": {
     "name": "Achei a Foto",
     "slug": "acheiafoto-mobile",
-    "version": "1.0.12",
+    "version": "1.0.13",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "acheiafoto",
@@ -85,6 +85,7 @@
       "url": "https://u.expo.dev/fcbbfecb-b704-4560-951b-803793d2aef0",
       "checkAutomatically": "ON_ERROR_RECOVERY",
       "fallbackToCacheTimeout": 0
-    }
+    },
+    "jsEngine": "hermes"
   }
 }

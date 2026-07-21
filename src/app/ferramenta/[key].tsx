@@ -10,8 +10,15 @@ import { useDevicePhotos } from "@/lib/devicephotos";
 import { TOOLS, hasFeature, type Feature } from "@/lib/entitlements";
 import {
   acharDuplicatas, acharAlbunsWhatsApp, agruparPorPeriodo, formatarBytes, somarBytes,
+  carregarParaAnalise,
   type GrupoDuplicata, type AlbumWhats, type PeriodoLinha,
 } from "@/lib/analise";
+
+// Teto por ferramenta. Duplicatas abre CADA arquivo (getAssetInfo + getInfo) para medir o
+// tamanho real, entao custa I/O por foto e precisa de teto menor. Linha do tempo so agrupa
+// datas que ja vieram na consulta: pode varrer muito mais sem pesar.
+const TETO_DUPLICATAS = 600;
+const TETO_LINHA = 5000;
 
 const W = Dimensions.get("window").width;
 const TH = (W - 16 * 2 - 8 * 2) / 3;
@@ -28,7 +35,7 @@ export default function Ferramenta() {
   const { key } = useLocalSearchParams<{ key: string }>();
   const router = useRouter();
   const { plan } = usePlan();
-  const { photos, ask } = useDevicePhotos();
+  const { ask } = useDevicePhotos();
   const tool = TOOLS.find((t) => t.key === key);
   const locked = tool ? !hasFeature(plan, tool.feature as Feature) : false;
 
@@ -37,6 +44,8 @@ export default function Ferramenta() {
   const [espaco, setEspaco] = useState(0);
   const [albuns, setAlbuns] = useState<AlbumWhats[]>([]);
   const [periodos, setPeriodos] = useState<PeriodoLinha[]>([]);
+  // Escopo REAL da analise: quantas fotos foram lidas e quantas existem na galeria.
+  const [escopo, setEscopo] = useState<{ lidas: number; total: number } | null>(null);
 
   useEffect(() => {
     let vivo = true;
@@ -44,23 +53,32 @@ export default function Ferramenta() {
       setCarregando(true);
       try {
         if (key === "duplicates") {
-          const g = await acharDuplicatas(photos);
+          const { fotos, total } = await carregarParaAnalise(TETO_DUPLICATAS);
+          if (!vivo) return;
+          setEscopo({ lidas: fotos.length, total });
+          const g = await acharDuplicatas(fotos, fotos.length);
           if (!vivo) return;
           setDups(g);
           const sobrando = g.flatMap((x) => x.fotos.slice(1)); // tudo menos 1 cópia de cada grupo
-          setEspaco(await somarBytes(sobrando));
+          const bytes = await somarBytes(sobrando);
+          if (vivo) setEspaco(bytes);
         } else if (key === "whatsapp") {
           const a = await acharAlbunsWhatsApp();
           if (vivo) setAlbuns(a);
         } else if (key === "timeline") {
-          if (vivo) setPeriodos(agruparPorPeriodo(photos));
+          const { fotos, total } = await carregarParaAnalise(TETO_LINHA);
+          if (!vivo) return;
+          setEscopo({ lidas: fotos.length, total });
+          setPeriodos(agruparPorPeriodo(fotos));
         }
       } finally {
         if (vivo) setCarregando(false);
       }
     })();
     return () => { vivo = false; };
-  }, [key, photos]);
+    // NAO depende de `photos`: a analise carrega a propria amostra da galeria. Depender da
+    // lista paginada da UI refazia a analise inteira a cada rolagem do usuario.
+  }, [key]);
 
   if (!tool) return <View style={{ flex: 1, backgroundColor: theme.bg }} />;
 
@@ -108,6 +126,7 @@ export default function Ferramenta() {
               ? "Nenhuma cópia encontrada nas fotos analisadas."
               : `${dups.length} ${dups.length === 1 ? "grupo" : "grupos"} de cópias · ${formatarBytes(espaco)} recuperáveis`}
           </Text>
+          <Escopo escopo={escopo} />
           {dups.map((g) => (
             <View key={g.chave} style={[s.card, { marginBottom: 12 }]}>
               <Text style={{ color: theme.text, fontWeight: "600", marginBottom: 8 }}>{g.fotos.length} cópias idênticas</Text>
@@ -149,6 +168,7 @@ export default function Ferramenta() {
       ) : key === "timeline" ? (
         <>
           <Text style={s.resumo}>{periodos.length} {periodos.length === 1 ? "período" : "períodos"} com fotos</Text>
+          <Escopo escopo={escopo} />
           {periodos.slice(0, 24).map((p) => (
             <View key={`${p.ano}-${p.mes}`} style={[s.card, { marginBottom: 10 }]}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
@@ -180,6 +200,21 @@ export default function Ferramenta() {
         </View>
       )}
     </ScrollView>
+  );
+}
+
+/**
+ * Diz de quantas fotos a conclusao saiu. So aparece quando a analise NAO cobriu a galeria
+ * inteira — porque ai o numero acima e uma amostra, e omitir isso faz o usuario ler como
+ * total. Sem essa linha, "1 grupo de copias" lido de 90 de 2.500 fotos vira mentira.
+ */
+function Escopo({ escopo }: { escopo: { lidas: number; total: number } | null }) {
+  if (!escopo || escopo.lidas >= escopo.total) return null;
+  return (
+    <Text style={{ color: theme.muted, fontSize: 12, marginTop: -8, marginBottom: 16 }}>
+      Analisadas as {escopo.lidas.toLocaleString("pt-BR")} fotos mais recentes de{" "}
+      {escopo.total.toLocaleString("pt-BR")} no aparelho.
+    </Text>
   );
 }
 
