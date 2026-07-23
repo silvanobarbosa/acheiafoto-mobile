@@ -68,10 +68,15 @@ if [ -n "$EMAIL" ] && [ -n "$SENHA" ]; then
   [ "$pronto" = 1 ] || { echo "  ERRO: tela de login nao apareceu — abortando"; exit 3; }
 
   adb shell input tap 540 1183; sleep 1
-  # `input text` engole caracteres em textos longos: digita em pedacos.
-  echo "$EMAIL" | fold -w 10 | while read -r p; do adb shell input text "$p"; sleep 2; done
+  # `input text` engole caracteres em textos longos: digita em pedacos de 10.
+  #
+  # NAO usar `... | while read`: `adb shell` LE O STDIN e devora o resto do pipe, entao só o
+  # primeiro pedaco era digitado. O campo ficava com "qa-mobile@" e o login falhava — e eu
+  # perdia tempo procurando defeito no app, que estava certo.
+  pedacos=$(echo "$EMAIL" | fold -w 10)
+  for p in $pedacos; do adb shell input text "$p" </dev/null; sleep 2; done
   adb shell input tap 540 1352; sleep 1
-  adb shell input text "$SENHA"; sleep 3
+  adb shell input text "$SENHA" </dev/null; sleep 3
   adb shell input keyevent 4; sleep 2
   adb shell input tap 540 1606; sleep 20
   # VERIFICACAO DE VERDADE: le a tela. Checar foco de janela nao serve — o app "em foco" na

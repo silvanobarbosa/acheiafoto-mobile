@@ -51,11 +51,22 @@ export type GrupoDuplicata = { chave: string; fotos: DevicePhoto[] };
  * caso comum (reenvio de WhatsApp, download repetido). Honesto e barato: nada de baixar
  * e comparar pixel de milhares de imagens no celular.
  */
-export async function acharDuplicatas(fotos: DevicePhoto[], limite = 400): Promise<GrupoDuplicata[]> {
+export async function acharDuplicatas(
+  fotos: DevicePhoto[],
+  limite = 400,
+  aoProgredir?: (feitas: number, total: number) => void,
+): Promise<GrupoDuplicata[]> {
   const amostra = fotos.slice(0, limite);
   const mapa = new Map<string, DevicePhoto[]>();
+  let feitas = 0;
 
   for (const f of amostra) {
+    // Cada foto custa DUAS idas ao disco (getAssetInfo + getInfo). Com 600 fotos isso levou
+    // 4,8 min no emulador — tempo demais para uma tela que só diz "Analisando…" parado. Sem
+    // sinal de avanço o usuário conclui que travou e mata o app, e o defeito vira "não
+    // funciona". O progresso é reportado a cada foto.
+    feitas++;
+    if (aoProgredir && feitas % 10 === 0) aoProgredir(feitas, amostra.length);
     try {
       const info = await MediaLibrary.getAssetInfoAsync(f.id);
       const uri = (info as unknown as { localUri?: string }).localUri || f.uri;

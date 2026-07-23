@@ -46,6 +46,9 @@ export default function Ferramenta() {
   const [periodos, setPeriodos] = useState<PeriodoLinha[]>([]);
   // Escopo REAL da analise: quantas fotos foram lidas e quantas existem na galeria.
   const [escopo, setEscopo] = useState<{ lidas: number; total: number } | null>(null);
+  // Progresso da análise pesada. Sem isto a tela fica ~5 min mostrando só "Analisando…",
+  // e o usuário mata o app achando que travou.
+  const [progresso, setProgresso] = useState<{ feitas: number; total: number } | null>(null);
 
   useEffect(() => {
     let vivo = true;
@@ -56,7 +59,9 @@ export default function Ferramenta() {
           const { fotos, total } = await carregarParaAnalise(TETO_DUPLICATAS);
           if (!vivo) return;
           setEscopo({ lidas: fotos.length, total });
-          const g = await acharDuplicatas(fotos, fotos.length);
+          const g = await acharDuplicatas(fotos, fotos.length, (feitas, total) => {
+            if (vivo) setProgresso({ feitas, total });
+          });
           if (!vivo) return;
           setDups(g);
           const sobrando = g.flatMap((x) => x.fotos.slice(1)); // tudo menos 1 cópia de cada grupo
@@ -117,7 +122,16 @@ export default function Ferramenta() {
       ) : carregando ? (
         <View style={{ alignItems: "center", paddingVertical: 48, gap: 12 }}>
           <ActivityIndicator color={theme.primary} size="large" />
-          <Text style={{ color: theme.muted, fontSize: 13 }}>Analisando suas fotos…</Text>
+          <Text style={{ color: theme.muted, fontSize: 13 }}>
+            {progresso
+              ? `Analisando ${progresso.feitas} de ${progresso.total} fotos…`
+              : "Analisando suas fotos…"}
+          </Text>
+          {progresso && (
+            <Text style={{ color: theme.muted, fontSize: 11 }}>
+              Pode levar alguns minutos com muitas fotos.
+            </Text>
+          )}
         </View>
       ) : key === "duplicates" ? (
         <>
@@ -172,7 +186,7 @@ export default function Ferramenta() {
           {periodos.slice(0, 24).map((p) => (
             <View key={`${p.ano}-${p.mes}`} style={[s.card, { marginBottom: 10 }]}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-                <Text style={{ color: theme.text, fontWeight: "600", textTransform: "capitalize" }}>{p.rotulo}</Text>
+                <Text style={{ color: theme.text, fontWeight: "600" }}>{p.rotulo}</Text>
                 <Text style={{ color: theme.muted, fontSize: 12 }}>{p.fotos.length}</Text>
               </View>
               <View style={{ flexDirection: "row", gap: 8 }}>
