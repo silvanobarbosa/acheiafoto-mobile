@@ -43,7 +43,11 @@ export async function carregarParaAnalise(max = 2000): Promise<{ fotos: DevicePh
   return { fotos: fotos.slice(0, max), total };
 }
 
-export type GrupoDuplicata = { chave: string; fotos: DevicePhoto[] };
+// `bytesPorFoto` = tamanho de UMA cópia do grupo (todas têm o mesmo, é a assinatura). Guardar
+// isto aqui elimina o `somarBytes`, que fazia uma SEGUNDA varredura de disco sobre os
+// duplicados — e essa segunda fase rodava sem barra de progresso, congelando a tela em
+// "600 de 600" por minutos. O tamanho já é lido na passada única; não há motivo pra reler.
+export type GrupoDuplicata = { chave: string; fotos: DevicePhoto[]; bytesPorFoto: number };
 
 /**
  * Duplicatas por assinatura de arquivo (tamanho em bytes + dimensões).
@@ -58,6 +62,7 @@ export async function acharDuplicatas(
 ): Promise<GrupoDuplicata[]> {
   const amostra = fotos.slice(0, limite);
   const mapa = new Map<string, DevicePhoto[]>();
+  const bytesDaChave = new Map<string, number>();
   let feitas = 0;
 
   for (const f of amostra) {
@@ -82,6 +87,7 @@ export async function acharDuplicatas(
       const lista = mapa.get(chave) || [];
       lista.push(f);
       mapa.set(chave, lista);
+      bytesDaChave.set(chave, bytes); // mesmo tamanho pra todas do grupo (é a assinatura)
     } catch {
       /* asset ilegivel: ignora em vez de derrubar a analise */
     }
@@ -89,7 +95,7 @@ export async function acharDuplicatas(
 
   return [...mapa.entries()]
     .filter(([, l]) => l.length > 1)
-    .map(([chave, fotos]) => ({ chave, fotos }))
+    .map(([chave, fotos]) => ({ chave, fotos, bytesPorFoto: bytesDaChave.get(chave) ?? 0 }))
     .sort((a, b) => b.fotos.length - a.fotos.length);
 }
 

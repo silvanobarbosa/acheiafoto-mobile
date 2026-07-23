@@ -9,7 +9,7 @@ import { usePlan } from "@/lib/plan";
 import { useDevicePhotos } from "@/lib/devicephotos";
 import { TOOLS, hasFeature, type Feature } from "@/lib/entitlements";
 import {
-  acharDuplicatas, acharAlbunsWhatsApp, agruparPorPeriodo, formatarBytes, somarBytes,
+  acharDuplicatas, acharAlbunsWhatsApp, agruparPorPeriodo, formatarBytes,
   carregarParaAnalise,
   type GrupoDuplicata, type AlbumWhats, type PeriodoLinha,
 } from "@/lib/analise";
@@ -64,8 +64,10 @@ export default function Ferramenta() {
           });
           if (!vivo) return;
           setDups(g);
-          const sobrando = g.flatMap((x) => x.fotos.slice(1)); // tudo menos 1 cópia de cada grupo
-          const bytes = await somarBytes(sobrando);
+          // Espaço recuperável = (nº de cópias além da 1ª) × tamanho de uma cópia. Vem dos
+          // grupos que a análise já mediu — sem `somarBytes`, que relia o disco e congelava
+          // a tela numa segunda fase silenciosa.
+          const bytes = g.reduce((tot, grp) => tot + (grp.fotos.length - 1) * grp.bytesPorFoto, 0);
           if (vivo) setEspaco(bytes);
         } else if (key === "whatsapp") {
           const a = await acharAlbunsWhatsApp();
