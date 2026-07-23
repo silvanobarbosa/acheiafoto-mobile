@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useSession } from "@/lib/auth";
 import { DevicePhotosProvider } from "@/lib/devicephotos";
+import { PrefsProvider } from "@/lib/prefs";
 import { checkForUpdate } from "@/lib/update";
 import { theme } from "@/lib/theme";
 
@@ -48,6 +49,7 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style="light" />
+      <PrefsProvider>
       <DevicePhotosProvider>
 
         <Stack
@@ -60,11 +62,13 @@ export default function RootLayout() {
       >
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="ferramenta/[key]" options={{ title: "" }} />
+          <Stack.Screen name="album/[id]" options={{ title: "" }} />
           <Stack.Screen name="foto/[id]" options={{ title: "" }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
         </Stack>
 
       </DevicePhotosProvider>
+      </PrefsProvider>
     </>
   );
 }

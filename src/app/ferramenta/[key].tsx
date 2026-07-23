@@ -14,12 +14,6 @@ import {
   type GrupoDuplicata, type AlbumWhats, type PeriodoLinha,
 } from "@/lib/analise";
 
-// Teto por ferramenta. Duplicatas abre CADA arquivo (getAssetInfo + getInfo) para medir o
-// tamanho real, entao custa I/O por foto e precisa de teto menor. Linha do tempo so agrupa
-// datas que ja vieram na consulta: pode varrer muito mais sem pesar.
-const TETO_DUPLICATAS = 600;
-const TETO_LINHA = 5000;
-
 const W = Dimensions.get("window").width;
 const TH = (W - 16 * 2 - 8 * 2) / 3;
 
@@ -46,9 +40,8 @@ export default function Ferramenta() {
   const [periodos, setPeriodos] = useState<PeriodoLinha[]>([]);
   // Escopo REAL da analise: quantas fotos foram lidas e quantas existem na galeria.
   const [escopo, setEscopo] = useState<{ lidas: number; total: number } | null>(null);
-  // Progresso da análise pesada. Sem isto a tela fica ~5 min mostrando só "Analisando…",
-  // e o usuário mata o app achando que travou.
-  const [progresso, setProgresso] = useState<{ feitas: number; total: number } | null>(null);
+  // Progresso da análise. Duas fases: "carregando" a galeria (27k fotos) e "comparando".
+  const [progresso, setProgresso] = useState<{ feitas: number; total: number; fase: "carregando" | "comparando" } | null>(null);
 
   useEffect(() => {
     let vivo = true;
@@ -56,24 +49,26 @@ export default function Ferramenta() {
       setCarregando(true);
       try {
         if (key === "duplicates") {
-          const { fotos, total } = await carregarParaAnalise(TETO_DUPLICATAS);
+          const { fotos, total } = await carregarParaAnalise((carregadas, tot) => {
+            if (vivo) setProgresso({ feitas: carregadas, total: tot, fase: "carregando" });
+          });
           if (!vivo) return;
           setEscopo({ lidas: fotos.length, total });
-          const g = await acharDuplicatas(fotos, fotos.length, (feitas, total) => {
-            if (vivo) setProgresso({ feitas, total });
+          const g = await acharDuplicatas(fotos, (feitas, tot) => {
+            if (vivo) setProgresso({ feitas, total: tot, fase: "comparando" });
           });
           if (!vivo) return;
           setDups(g);
-          // Espaço recuperável = (nº de cópias além da 1ª) × tamanho de uma cópia. Vem dos
-          // grupos que a análise já mediu — sem `somarBytes`, que relia o disco e congelava
-          // a tela numa segunda fase silenciosa.
+          // Espaço recuperável = (nº de cópias além da 1ª) × tamanho de uma cópia.
           const bytes = g.reduce((tot, grp) => tot + (grp.fotos.length - 1) * grp.bytesPorFoto, 0);
           if (vivo) setEspaco(bytes);
         } else if (key === "whatsapp") {
           const a = await acharAlbunsWhatsApp();
           if (vivo) setAlbuns(a);
         } else if (key === "timeline") {
-          const { fotos, total } = await carregarParaAnalise(TETO_LINHA);
+          const { fotos, total } = await carregarParaAnalise((carregadas, tot) => {
+            if (vivo) setProgresso({ feitas: carregadas, total: tot, fase: "carregando" });
+          });
           if (!vivo) return;
           setEscopo({ lidas: fotos.length, total });
           setPeriodos(agruparPorPeriodo(fotos));
@@ -126,14 +121,11 @@ export default function Ferramenta() {
           <ActivityIndicator color={theme.primary} size="large" />
           <Text style={{ color: theme.muted, fontSize: 13 }}>
             {progresso
-              ? `Analisando ${progresso.feitas} de ${progresso.total} fotos…`
+              ? progresso.fase === "carregando"
+                ? `Lendo sua galeria… ${progresso.feitas.toLocaleString("pt-BR")} de ${progresso.total.toLocaleString("pt-BR")}`
+                : `Comparando ${progresso.feitas.toLocaleString("pt-BR")} de ${progresso.total.toLocaleString("pt-BR")} fotos…`
               : "Analisando suas fotos…"}
           </Text>
-          {progresso && (
-            <Text style={{ color: theme.muted, fontSize: 11 }}>
-              Pode levar alguns minutos com muitas fotos.
-            </Text>
-          )}
         </View>
       ) : key === "duplicates" ? (
         <>
@@ -165,21 +157,23 @@ export default function Ferramenta() {
               : `${albuns.length} ${albuns.length === 1 ? "pasta" : "pastas"} do WhatsApp na galeria`}
           </Text>
           {albuns.map((a) => (
-            <View key={a.id} style={[s.card, { marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 12 }]}>
+            // ANTES era um <View> sem ação — o dono tocava e nada acontecia. Agora abre a
+            // pasta numa grade de miniaturas (tocar numa foto → tela cheia).
+            <Pressable
+              key={a.id}
+              onPress={() => router.push({ pathname: "/album/[id]", params: { id: a.id, titulo: a.titulo } })}
+              style={[s.card, { marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 12 }]}
+            >
               <View style={[s.iconBox, { backgroundColor: "rgba(52,211,153,0.15)" }]}>
                 <Feather name="message-circle" size={20} color="#34d399" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: theme.text, fontWeight: "600" }}>{a.titulo}</Text>
-                <Text style={{ color: theme.muted, fontSize: 12 }}>{a.total.toLocaleString("pt-BR")} itens</Text>
+                <Text style={{ color: theme.muted, fontSize: 12 }}>{a.total.toLocaleString("pt-BR")} itens · toque para abrir</Text>
               </View>
-            </View>
+              <Feather name="chevron-right" size={20} color={theme.muted} />
+            </Pressable>
           ))}
-          {albuns.length > 0 && (
-            <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>
-              Abra a aba Buscar para selecionar e apagar o que não quer guardar.
-            </Text>
-          )}
         </>
       ) : key === "timeline" ? (
         <>

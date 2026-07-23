@@ -5,12 +5,11 @@ import { useMemo, useState, useCallback } from "react";
 import { useRouter } from "expo-router";
 import * as MediaLibrary from "expo-media-library/legacy";
 import { theme, radius } from "@/lib/theme";
+import { usePrefs } from "@/lib/prefs";
 import { useDevicePhotos } from "@/lib/devicephotos";
 
 const W = Dimensions.get("window").width;
-const COLS = 3;
 const GAP = 3;
-const SIZE = (W - GAP * (COLS + 1)) / COLS;
 
 /**
  * Galeria completa — com SELEÇÃO e AÇÕES REAIS.
@@ -21,6 +20,8 @@ const SIZE = (W - GAP * (COLS + 1)) / COLS;
  * dele, obrigatória no scoped storage).
  */
 export default function Buscar() {
+  const { thumbsPorLinha: COLS } = usePrefs();
+  const SIZE = (W - GAP * (COLS + 1)) / COLS;
   const router = useRouter();
   const { perm, photos, total, loadMore, loadingMore, ask } = useDevicePhotos();
   const [q, setQ] = useState("");
@@ -132,6 +133,7 @@ export default function Buscar() {
           data={results}
           keyExtractor={(p) => p.id}
           numColumns={COLS}
+          key={COLS}
           contentContainerStyle={{ padding: GAP }}
           columnWrapperStyle={{ gap: GAP }}
           ItemSeparatorComponent={() => <View style={{ height: GAP }} />}

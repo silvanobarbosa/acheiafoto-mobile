@@ -22,7 +22,13 @@ import type { DevicePhoto } from "./devicephotos";
  *
  * Devolve tambem o `total` da galeria para a tela poder dizer o que ficou de fora.
  */
-export async function carregarParaAnalise(max = 2000): Promise<{ fotos: DevicePhoto[]; total: number }> {
+export async function carregarParaAnalise(
+  aoProgredir?: (carregadas: number, total: number) => void,
+): Promise<{ fotos: DevicePhoto[]; total: number }> {
+  // Traz a GALERIA INTEIRA. O dono tem 27 mil fotos e o teto de 600 escondia 97% delas —
+  // a análise dizia "600 de 2.506" e o resultado era de uma amostra, não da galeria. Só
+  // metadados entram aqui (id, uri, dimensão, nome, data): nenhuma leitura de arquivo, então
+  // até dezenas de milhares de fotos carregam em segundos.
   const fotos: DevicePhoto[] = [];
   let after: string | undefined;
   let total = 0;
@@ -30,17 +36,20 @@ export async function carregarParaAnalise(max = 2000): Promise<{ fotos: DevicePh
   for (;;) {
     const p = await MediaLibrary.getAssetsAsync({
       mediaType: "photo",
-      first: 500,
+      first: 1000,
       sortBy: [["creationTime", false]],
       after,
     });
     total = p.totalCount;
-    for (const a of p.assets) fotos.push({ id: a.id, uri: a.uri, creationTime: a.creationTime });
-    if (!p.hasNextPage || fotos.length >= max) break;
+    for (const a of p.assets) {
+      fotos.push({ id: a.id, uri: a.uri, creationTime: a.creationTime, width: a.width, height: a.height, filename: a.filename });
+    }
+    if (aoProgredir) aoProgredir(fotos.length, total);
+    if (!p.hasNextPage) break;
     after = p.endCursor;
   }
 
-  return { fotos: fotos.slice(0, max), total };
+  return { fotos, total };
 }
 
 // `bytesPorFoto` = tamanho de UMA cópia do grupo (todas têm o mesmo, é a assinatura). Guardar
@@ -57,46 +66,53 @@ export type GrupoDuplicata = { chave: string; fotos: DevicePhoto[]; bytesPorFoto
  */
 export async function acharDuplicatas(
   fotos: DevicePhoto[],
-  limite = 400,
   aoProgredir?: (feitas: number, total: number) => void,
 ): Promise<GrupoDuplicata[]> {
-  const amostra = fotos.slice(0, limite);
+  // ASSINATURA POR METADADOS — nada de ler arquivo.
+  //
+  // A versão anterior fazia getAssetInfo + FileSystem.getInfo por foto (2 idas ao disco).
+  // No aparelho real isso: (1) NÃO ESCALA — 27 mil fotos = 54 mil leituras, minutos travados;
+  // (2) QUEBRA — as URIs são content://, e FileSystem.getInfo não devolve tamanho pra elas,
+  // então bytes=0 e TODA foto era pulada ("duplicatas não funcionou", relatado pelo dono).
+  //
+  // Nome do arquivo + dimensões já vêm no getAssetsAsync. Reenvio de WhatsApp e download
+  // repetido preservam o nome (IMG-...-WA0001.jpg) e as dimensões exatas. Isso acha a cópia
+  // real, na memória, instantâneo, e funciona em qualquer URI.
   const mapa = new Map<string, DevicePhoto[]>();
-  const bytesDaChave = new Map<string, number>();
   let feitas = 0;
 
-  for (const f of amostra) {
-    // Cada foto custa DUAS idas ao disco (getAssetInfo + getInfo). Com 600 fotos isso levou
-    // 4,8 min no emulador — tempo demais para uma tela que só diz "Analisando…" parado. Sem
-    // sinal de avanço o usuário conclui que travou e mata o app, e o defeito vira "não
-    // funciona". O progresso é reportado a cada foto.
+  for (const f of fotos) {
     feitas++;
-    if (aoProgredir && feitas % 10 === 0) aoProgredir(feitas, amostra.length);
+    if (aoProgredir && feitas % 500 === 0) aoProgredir(feitas, fotos.length);
+    // chave: nome (se houver) + dimensões. Sem nome, cai em dimensão × data (segundo).
+    const dim = `${f.width ?? 0}x${f.height ?? 0}`;
+    const chave = f.filename ? `n:${f.filename}|${dim}` : `d:${dim}|t:${Math.round(f.creationTime / 1000)}`;
+    const lista = mapa.get(chave) || [];
+    lista.push(f);
+    mapa.set(chave, lista);
+  }
+  if (aoProgredir) aoProgredir(fotos.length, fotos.length);
+
+  const grupos = [...mapa.entries()].filter(([, l]) => l.length > 1);
+
+  // Tamanho real só dos GRUPOS de cópia (poucos), pra mostrar "X MB recuperáveis". Aqui a
+  // leitura de disco é aceitável: são dezenas, não dezenas de milhares. Falha silenciosa se
+  // não conseguir (mantém a duplicata detectada; só o número de MB fica em 0).
+  const out: GrupoDuplicata[] = [];
+  for (const [chave, lista] of grupos) {
+    let bytes = 0;
     try {
-      const info = await MediaLibrary.getAssetInfoAsync(f.id);
-      const uri = (info as unknown as { localUri?: string }).localUri || f.uri;
-      // TAMANHO REAL vem do FileSystem. A MediaLibrary NAO expoe fileSize (conferido nos
-      // tipos da lib): a versao anterior lia um campo inexistente, dava 0 e PULAVA toda
-      // foto — a tela dizia "nenhuma copia encontrada" mesmo com a galeria cheia de copias.
-      const st = await FileSystem.getInfoAsync(uri);
-      const bytes = st.exists ? (st as unknown as { size?: number }).size ?? 0 : 0;
-      const w = (info as unknown as { width?: number }).width ?? 0;
-      const h = (info as unknown as { height?: number }).height ?? 0;
-      if (!bytes) continue;
-      const chave = `${bytes}x${w}x${h}`;
-      const lista = mapa.get(chave) || [];
-      lista.push(f);
-      mapa.set(chave, lista);
-      bytesDaChave.set(chave, bytes); // mesmo tamanho pra todas do grupo (é a assinatura)
-    } catch {
-      /* asset ilegivel: ignora em vez de derrubar a analise */
-    }
+      const info = await MediaLibrary.getAssetInfoAsync(lista[0].id);
+      const uri = (info as unknown as { localUri?: string }).localUri;
+      if (uri) {
+        const st = await FileSystem.getInfoAsync(uri);
+        bytes = st.exists ? (st as unknown as { size?: number }).size ?? 0 : 0;
+      }
+    } catch { /* mantém o grupo, bytes fica 0 */ }
+    out.push({ chave, fotos: lista, bytesPorFoto: bytes });
   }
 
-  return [...mapa.entries()]
-    .filter(([, l]) => l.length > 1)
-    .map(([chave, fotos]) => ({ chave, fotos, bytesPorFoto: bytesDaChave.get(chave) ?? 0 }))
-    .sort((a, b) => b.fotos.length - a.fotos.length);
+  return out.sort((a, b) => b.fotos.length - a.fotos.length);
 }
 
 export type AlbumWhats = { id: string; titulo: string; total: number };

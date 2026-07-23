@@ -4,6 +4,7 @@ import { useState } from "react";
 import { theme, radius } from "@/lib/theme";
 import { usePlan } from "@/lib/plan";
 import { signOut } from "@/lib/auth";
+import { usePrefs, MIN_THUMBS, MAX_THUMBS } from "@/lib/prefs";
 
 function Toggle({ label }: { label: string }) {
   const [on, setOn] = useState(true);
@@ -16,6 +17,7 @@ function Toggle({ label }: { label: string }) {
 }
 
 export default function Ajustes() {
+  const { thumbsPorLinha, setThumbsPorLinha } = usePrefs();
   const { plan, email, name } = usePlan();
   const [signingOut, setSigningOut] = useState(false);
   const isPremium = plan === "premium";
@@ -56,7 +58,31 @@ export default function Ajustes() {
 
       {/* preferências */}
       <Text style={s.h}>Preferências</Text>
+
+      {/* Densidade das miniaturas — vale para TODAS as grades (busca, álbum, período).
+          Mais por linha = menores; menos = maiores. Tocar numa foto abre em tela cheia. */}
       <View style={s.card}>
+        <Text style={{ color: theme.text, fontSize: 14, marginBottom: 4 }}>Miniaturas por linha</Text>
+        <Text style={{ color: theme.muted, fontSize: 12, marginBottom: 12 }}>
+          {thumbsPorLinha} por linha — {thumbsPorLinha <= 3 ? "maiores" : "menores"}
+        </Text>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          {Array.from({ length: MAX_THUMBS - MIN_THUMBS + 1 }, (_, i) => MIN_THUMBS + i).map((n) => (
+            <Pressable
+              key={n}
+              onPress={() => setThumbsPorLinha(n)}
+              style={{
+                flex: 1, paddingVertical: 10, borderRadius: radius.md, alignItems: "center",
+                backgroundColor: n === thumbsPorLinha ? theme.primary : theme.surface2,
+              }}
+            >
+              <Text style={{ color: n === thumbsPorLinha ? theme.primaryText : theme.text, fontWeight: "700" }}>{n}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      <View style={[s.card, { marginTop: 12 }]}>
         <Toggle label="Indexar só no Wi‑Fi" />
         <Toggle label="Processamento de IA no aparelho" />
         <Toggle label="Backup automático" />

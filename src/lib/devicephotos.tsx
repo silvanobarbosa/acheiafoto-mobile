@@ -5,7 +5,13 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 // apareceu depois que passamos a exibir a falha em vez de engolir.
 import * as MediaLibrary from "expo-media-library/legacy";
 
-export type DevicePhoto = { id: string; uri: string; creationTime: number };
+// width/height/filename VÊM de graça no getAssetsAsync (a lib já os retorna). Guardá-los
+// permite achar duplicatas SEM ler byte de arquivo nenhum — o que era 2 idas ao disco por
+// foto (inviável em 27 mil fotos) e ainda quebrava em URIs content:// do aparelho real.
+export type DevicePhoto = {
+  id: string; uri: string; creationTime: number;
+  width?: number; height?: number; filename?: string;
+};
 
 /** granted = acesso total | limited = usuário escolheu "Selecionar fotos" | denied = negou */
 export type PermState = "loading" | "granted" | "limited" | "denied";
@@ -48,7 +54,10 @@ export function DevicePhotosProvider({ children }: { children: React.ReactNode }
       sortBy: [["creationTime", false]],
       after: cursor,
     });
-    const mapped: DevicePhoto[] = page.assets.map((a) => ({ id: a.id, uri: a.uri, creationTime: a.creationTime }));
+    const mapped: DevicePhoto[] = page.assets.map((a) => ({
+      id: a.id, uri: a.uri, creationTime: a.creationTime,
+      width: a.width, height: a.height, filename: a.filename,
+    }));
     setPhotos((prev) => (cursor ? [...prev, ...mapped] : mapped));
     setAfter(page.endCursor);
     setTotal(page.totalCount);
