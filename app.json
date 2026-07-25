@@ -2,7 +2,7 @@
   "expo": {
     "name": "Achei a Foto",
     "slug": "acheiafoto-mobile",
-    "version": "1.0.18",
+    "version": "1.0.19",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "acheiafoto",
@@ -72,7 +72,8 @@
         {
           "faceIDPermission": "Use o rosto para desbloquear o cofre pessoal."
         }
-      ]
+      ],
+      "react-native-fast-tflite"
     ],
     "experiments": {
       "typedRoutes": true,

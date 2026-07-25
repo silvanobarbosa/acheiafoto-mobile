@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { theme, radius } from "@/lib/theme";
 import { usePlan } from "@/lib/plan";
 import { TOOLS, hasFeature } from "@/lib/entitlements";
@@ -17,7 +17,7 @@ export default function Ferramentas() {
       {TOOLS.map((t) => {
         const locked = !hasFeature(plan, t.feature);
         return (
-          <Pressable key={t.key} onPress={() => router.push(t.key === "vault" ? "/cofre" : `/ferramenta/${t.key}`)} style={[s.row, locked && { opacity: 0.7 }]}>
+          <Pressable key={t.key} onPress={() => router.push((t.key === "vault" ? "/cofre" : t.key === "pessoas" ? "/pessoas" : `/ferramenta/${t.key}`) as unknown as Href)} style={[s.row, locked && { opacity: 0.7 }]}>
             <View style={[s.icon, { backgroundColor: t.tint + "26" }]}><Feather name={t.icon as never} size={22} color={t.tint} /></View>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>

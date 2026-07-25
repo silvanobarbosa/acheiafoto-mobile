@@ -63,6 +63,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="ferramenta/[key]" options={{ title: "" }} />
           <Stack.Screen name="cofre" options={{ title: "Cofre pessoal" }} />
+          <Stack.Screen name="pessoas" options={{ title: "Pessoas" }} />
           <Stack.Screen name="locais" options={{ title: "Locais e fontes" }} />
           <Stack.Screen name="album/[id]" options={{ title: "" }} />
           <Stack.Screen name="foto/[id]" options={{ title: "" }} />
