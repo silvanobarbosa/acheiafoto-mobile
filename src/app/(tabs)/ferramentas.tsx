@@ -17,7 +17,7 @@ export default function Ferramentas() {
       {TOOLS.map((t) => {
         const locked = !hasFeature(plan, t.feature);
         return (
-          <Pressable key={t.key} onPress={() => router.push(`/ferramenta/${t.key}`)} style={[s.row, locked && { opacity: 0.7 }]}>
+          <Pressable key={t.key} onPress={() => router.push(t.key === "vault" ? "/cofre" : `/ferramenta/${t.key}`)} style={[s.row, locked && { opacity: 0.7 }]}>
             <View style={[s.icon, { backgroundColor: t.tint + "26" }]}><Feather name={t.icon as never} size={22} color={t.tint} /></View>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>

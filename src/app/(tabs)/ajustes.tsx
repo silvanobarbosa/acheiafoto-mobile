@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, Pressable, StyleSheet, Switch } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useState } from "react";
+import { useRouter } from "expo-router";
 import { theme, radius } from "@/lib/theme";
 import { usePlan } from "@/lib/plan";
 import { signOut } from "@/lib/auth";
@@ -19,6 +20,7 @@ function Toggle({ label }: { label: string }) {
 export default function Ajustes() {
   const { thumbsPorLinha, setThumbsPorLinha } = usePrefs();
   const { plan, email, name } = usePlan();
+  const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
   const isPremium = plan === "premium";
   const initials = (name || email || "?").trim().slice(0, 2).toUpperCase();
@@ -88,6 +90,19 @@ export default function Ajustes() {
         <Toggle label="Backup automático" />
         <Toggle label="Notificações de novas memórias" />
       </View>
+
+      {/* locais e fontes */}
+      <Text style={s.h}>Locais e fontes</Text>
+      <Pressable onPress={() => router.push("/locais")} style={[s.card, { flexDirection: "row", alignItems: "center", gap: 12 }]}>
+        <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: theme.surface2, alignItems: "center", justifyContent: "center" }}>
+          <Feather name="folder-plus" size={20} color={theme.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: theme.text, fontSize: 14, fontWeight: "600" }}>Vincular mais locais</Text>
+          <Text style={{ color: theme.muted, fontSize: 12 }}>Este aparelho, nuvem, HD externo, notebook</Text>
+        </View>
+        <Feather name="chevron-right" size={20} color={theme.muted} />
+      </Pressable>
 
       {/* privacidade */}
       <View style={[s.card, { flexDirection: "row", gap: 10, marginTop: 12 }]}>
