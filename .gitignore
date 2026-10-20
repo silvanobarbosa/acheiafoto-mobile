@@ -31,7 +31,13 @@ yarn-error.*
 *.pem
 
 # local env files
-.env*.local
+# Ignora QUALQUER .env e libera so os de exemplo. O padrao antigo (.env*.local) deixava
+# passar ate o `.env` simples, alem de `.env.vercel` e `.env.production` — os nomes que o
+# `vercel env pull` cria. Foi por essa fresta que 40 chaves de producao do hub foram parar
+# num repositorio publico em julho/2026.
+.env*
+!.env.example
+!.env*.example
 
 # typescript
 *.tsbuildinfo
